@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { UsersService } from 'src/users/users.service';
@@ -12,7 +12,8 @@ export class AuthService {
                 private jwtService: JwtService){}
 
     async login(userDto: CreateUserDto){
-
+        const user = await this.validateUser(userDto)
+        return this.generateToken(user)
     }
 
     async registration(userDto: CreateUserDto){
@@ -22,14 +23,25 @@ export class AuthService {
         }
         const hashPassword = await bcrypt.hash(userDto.password,5);
         const user = await this.userService.createUser({...userDto, password: hashPassword})
-        console.log("user:", user.toJSON())
         return this.generateToken(user)
     }
 
-    async generateToken(user: User){
-        const payload = {login: user.login, id: user.id, roles: user.roles}
+    private async generateToken(user: User){
+        const payload = {login: user.get('login'), id: user.get('id'), roles: user.roles};
         return{
             token: this.jwtService.sign(payload)
         }
+    }
+
+    private async validateUser(userDto: CreateUserDto) {
+        const user = await this.userService.getUserByLogin(userDto.login);
+        if (!user) {
+            throw new UnauthorizedException({message: 'Некорректный логин или пароль'})
+        }
+        const passwordEquals = await bcrypt.compare(userDto.password, user.get('password'));
+        if (user && passwordEquals) {
+            return user;
+        }
+        throw new UnauthorizedException({message: 'Некорректный логин или пароль'})
     }
 }
