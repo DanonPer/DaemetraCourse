@@ -3,6 +3,8 @@ import { User } from './users.model';
 import { InjectModel } from '@nestjs/sequelize';
 import { CreateUserDto } from './dto/create-user.dto';
 import { RolesService } from 'src/roles/roles.service';
+import { GetUsersDto } from './dto/get-users.dto';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class UsersService {
@@ -20,10 +22,35 @@ export class UsersService {
         return user;
     }
 
-    async getAllUsers(){
-        const users = await this.userRepository.findAll({include:{all: true}});
-        return users;
+    async getAllUsers(getUsersDto: GetUsersDto) {
+        const { login, page = 1, limit = 10 } = getUsersDto;
+        const offset = (page - 1) * limit;
+    
+        const where: any = {};
+        if (login) {
+            where.login = {
+            [Op.iLike]: `%${login}%`
+      };
     }
+    
+    const { count, rows: users } = await this.userRepository.findAndCountAll({
+        where,
+        limit,
+        offset,
+        include: { all: true },
+        distinct: true,
+    });
+    
+    return {
+      users,
+      pagination: {
+        total: count,
+        page: +page,
+        limit: +limit,
+        totalPages: Math.ceil(count / limit),
+      }
+    };
+  }
 
     async getUserByEmail(email: string){
         const user = await this.userRepository.findOne({where:{email}, include: {all:true}})
