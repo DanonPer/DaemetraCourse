@@ -22,6 +22,12 @@ export class JwtAuthGuard implements CanActivate {
             req.user = user;
             return true;
         } catch (e) {
+            if (e.name === 'TokenExpiredError') {
+                throw new UnauthorizedException({ 
+                    message: 'Истек срок действия Access token',
+                    code: 'TOKEN_EXPIRED'
+                });
+            }
             throw new UnauthorizedException({message: 'Пользователь не авторизован'})
         }
     }

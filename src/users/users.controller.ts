@@ -13,11 +13,11 @@ export class UsersController {
         return this.usersService.createUser(userDto);
     }
 
-    // @Get()
-    // @UseGuards(JwtAuthGuard)
-    // getAll(){
-    //     return this.usersService.getAllUsers();
-    // }
+    @Get()
+    @UseGuards(JwtAuthGuard)
+    getAll(){
+        return this.usersService.getAllUsers();
+    }
 
     @Get('me')
     @UseGuards(JwtAuthGuard)

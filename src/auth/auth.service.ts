@@ -26,11 +26,46 @@ export class AuthService {
         return this.generateToken(user)
     }
 
-    private async generateToken(user: User){
-        const payload = {login: user.get('login'), id: user.get('id'), roles: user.roles};
-        return{
-            token: this.jwtService.sign(payload)
+    async refresh(refreshToken: string) {
+        try {
+            const userData = this.jwtService.verify(refreshToken, {
+                secret: process.env.PRIVATE_KEY || 'SECRET'
+            });
+
+            const user = await this.userService.getUserByLogin(userData.login);
+            if (!user) {
+                throw new UnauthorizedException({ message: 'Пользователь не найден' });
+            }
+
+            return this.generateToken(user);
+        } catch (e) {
+            throw new UnauthorizedException({ message: 'Невалидный refresh токен' });
         }
+    }
+
+    private async generateToken(user: User) {
+        const payload = { 
+            login: user.get('login'), 
+            id: user.get('id'), 
+            roles: user.roles 
+        };
+        
+        const accessToken = this.jwtService.sign(payload, {
+            expiresIn: '15m'
+        });
+        const refreshToken = this.jwtService.sign(payload, {
+            expiresIn: '7d'
+        });
+        
+        return {
+            accessToken,
+            refreshToken,
+            user: {
+                id: user.get('id'),
+                login: user.get('login'),
+                roles: user.roles
+            }
+        };
     }
 
     private async validateUser(userDto: CreateUserDto) {
