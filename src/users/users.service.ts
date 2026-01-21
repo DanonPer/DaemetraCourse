@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from './users.model';
 import { InjectModel } from '@nestjs/sequelize';
 import { CreateUserDto } from './dto/create-user.dto';
 import { RolesService } from 'src/roles/roles.service';
 import { GetUsersDto } from './dto/get-users.dto';
 import { Op } from 'sequelize';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -63,7 +64,39 @@ export class UsersService {
     }
 
     async getUserById(id: number){
-        const user = await this.userRepository.findOne({where:{id}, include: {all:true}})
+        const user = await this.userRepository.findOne({where:{id}, include: {all:true},paranoid: false});
         return user;
+    }
+
+    async updateUser(id: number, updateUserDto: UpdateUserDto) {
+        const user = await this.userRepository.findByPk(id);
+        
+        if (!user) {
+            throw new NotFoundException(`Пользователь с id ${id} не найден`);
+        }
+
+        await user.update(updateUserDto);
+        
+        if (updateUserDto.hasOwnProperty('roles')) {
+            await user.$set('roles', updateUserDto['roles']);
+        }
+
+        return await this.userRepository.findByPk(id, {
+            include: { all: true }
+        });
+    }
+
+    async softDeleteUser(id: number) {
+        const user = await this.userRepository.findByPk(id);
+        
+        if (!user) {
+            throw new NotFoundException(`Пользователь с id ${id} не найден`);
+        }
+
+        await user.destroy();
+        return { 
+            message: `Пользователь с id ${id} - удалён`,
+            deletedAt: new Date()
+        };
     }
 }
