@@ -3,20 +3,28 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersModule } from 'src/users/users.module';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { JwtSignOptions } from '@nestjs/jwt';
 
 @Module({
   controllers: [AuthController],
   providers: [AuthService],
   imports: [
     forwardRef(() => UsersModule),
-    JwtModule.register({
-      secret:process.env.PRIVATE_KEY || 'SECRET',
-      signOptions:{
-        expiresIn:'15m'
-      }
+    JwtModule.registerAsync({
+      useFactory: (configService: ConfigService) => {
+        const expiresIn = configService.get<string>('ACCESS_TOKEN_EXPIRES_IN') || '15m';
+        return {
+          secret: configService.get<string>('PRIVATE_KEY'),
+          signOptions: {
+            expiresIn: expiresIn
+          } as JwtSignOptions
+        };
+      },
+      inject: [ConfigService]
     })
   ],
-  exports:[
+  exports: [
     AuthService,
     JwtModule
   ]

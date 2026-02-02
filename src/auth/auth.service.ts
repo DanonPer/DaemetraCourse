@@ -4,12 +4,16 @@ import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcryptjs'
 import { User } from 'src/users/users.model';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
 
-    constructor(private userService: UsersService,
-                private jwtService: JwtService){}
+    constructor(
+        private userService: UsersService,
+        private jwtService: JwtService,
+        private configService: ConfigService
+    ){}
 
     async login(userDto: CreateUserDto){
         const user = await this.validateUser(userDto)
@@ -29,7 +33,7 @@ export class AuthService {
     async refresh(refreshToken: string) {
         try {
             const userData = this.jwtService.verify(refreshToken, {
-                secret: process.env.PRIVATE_KEY || 'SECRET'
+                secret: this.configService.get<string>('PRIVATE_KEY')
             });
 
             const user = await this.userService.getUserByLogin(userData.login);
@@ -42,30 +46,34 @@ export class AuthService {
             throw new UnauthorizedException({ message: 'Невалидный refresh токен' });
         }
     }
-
+    
     private async generateToken(user: User) {
-        const payload = { 
-            login: user.get('login'), 
-            id: user.get('id'), 
-            roles: user.roles 
-        };
-        
-        const accessToken = this.jwtService.sign(payload, {
-            expiresIn: '15m'
-        });
-        const refreshToken = this.jwtService.sign(payload, {
-            expiresIn: '7d'
-        });
-        
-        return {
-            accessToken,
-            refreshToken,
-            user: {
-                id: user.get('id'),
-                login: user.get('login'),
-                roles: user.roles
-            }
-        };
+    const payload = { 
+        login: user.get('login'), 
+        id: user.get('id'), 
+        roles: user.roles 
+    };
+    
+    const accessTokenExpiresIn = this.configService.get<string>('ACCESS_TOKEN_EXPIRES_IN', '15m');
+    const refreshTokenExpiresIn = this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN', '7d');
+    
+    const accessToken = this.jwtService.sign(payload, {
+        expiresIn: accessTokenExpiresIn
+    } as any);
+    
+    const refreshToken = this.jwtService.sign(payload, {
+        expiresIn: refreshTokenExpiresIn
+    } as any);
+    
+    return {
+        accessToken,
+        refreshToken,
+        user: {
+            id: user.get('id'),
+            login: user.get('login'),
+            roles: user.roles
+        }
+    };
     }
 
     private async validateUser(userDto: CreateUserDto) {

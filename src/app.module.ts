@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { SequelizeModule } from "@nestjs/sequelize";
 import { UsersModule } from "./users/users.module";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { User } from "./users/users.model";
 import { RolesModule } from './roles/roles.module';
 import { Role } from "./roles/roles.model";
@@ -13,21 +13,26 @@ import { AuthModule } from './auth/auth.module';
     providers: [],
     imports: [
         ConfigModule.forRoot({
-            envFilePath:`.${process.env.NODE_ENV}.env`
+            envFilePath: `.${process.env.NODE_ENV || 'development'}.env`,
+            isGlobal: true
         }),
-        SequelizeModule.forRoot({
-            dialect: 'postgres',
-            host: process.env.POSTGRES_HOST,
-            port: Number(process.env.POSTGRES_PORT),
-            username: process.env.POSTGRES_USER,
-            password: process.env.POSTGRES_PASSWORD,
-            database: process.env.POSTGRES_DB,
-            models: [User, Role, UserRole],
-            autoLoadModels: true
-    }),
-    UsersModule,
-    RolesModule,
-    AuthModule,
+        SequelizeModule.forRootAsync({
+            imports: [ConfigModule],
+            useFactory: (configService: ConfigService) => ({
+                dialect: 'postgres',
+                host: configService.get<string>('POSTGRES_HOST', 'localhost'),
+                port: configService.get<number>('POSTGRES_PORT', 5432),
+                username: configService.get<string>('POSTGRES_USER', 'postgres'),
+                password: configService.get<string>('POSTGRES_PASSWORD'),
+                database: configService.get<string>('POSTGRES_DB', 'nest-db'),
+                models: [User, Role, UserRole],
+                autoLoadModels: true
+            }),
+            inject: [ConfigService]
+        }),
+        UsersModule,
+        RolesModule,
+        AuthModule,
     ]
 })
 export class AppModule {}
