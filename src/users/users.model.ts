@@ -10,9 +10,10 @@ interface UserCreationAttrs {
     password: string;
     age: number;
     description?: string;
+    deletedAt?: Date;
 }
 
-@Table({ tableName: 'users' })
+@Table({ tableName: 'users', paranoid: true, defaultScope: { where: { deletedAt: null }}})
 export class User extends Model<User, UserCreationAttrs> {
     @ApiProperty({example: '1', description: 'Уникальный идентификатор'})
     @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4, primaryKey: true, allowNull: false })
@@ -37,6 +38,9 @@ export class User extends Model<User, UserCreationAttrs> {
     @ApiProperty({example: 'I am a test user', description: 'Описание'})    
     @Column({ type: DataType.STRING(1000),allowNull: true, defaultValue: ""})
         description: string;
+    
+    @Column({ type: DataType.DATE, allowNull: true, defaultValue: null })
+        declare deletedAt: Date;
 
     @BelongsToMany(() => Role, () => UserRole)
         roles: Role[];

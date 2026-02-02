@@ -46,8 +46,6 @@ export class UsersService {
       users,
       pagination: {
         total: count,
-        page: +page,
-        limit: +limit,
         totalPages: Math.ceil(count / limit),
       }
     };
@@ -88,7 +86,7 @@ export class UsersService {
 
     async softDeleteUser(id: string) {
         const user = await this.userRepository.findByPk(id);
-        
+
         if (!user) {
             throw new NotFoundException(`Пользователь с id ${id} не найден`);
         }
@@ -96,7 +94,7 @@ export class UsersService {
         await user.destroy();
         return { 
             message: `Пользователь с id ${id} - удалён`,
-            deletedAt: new Date()
+            deletedAt: new Date() 
         };
     }
 }
