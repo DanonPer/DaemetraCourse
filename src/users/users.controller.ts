@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -25,7 +25,7 @@ export class UsersController {
     @Get()
     @UseGuards(JwtAuthGuard)
     getAll(@Query() getUsersDto: GetUsersDto) {
-    return this.usersService.getAllUsers(getUsersDto);
+        return this.usersService.getAllUsers(getUsersDto);
     }
 
     @ApiOperation({summary: 'Получение информации о себе'})
@@ -40,7 +40,7 @@ export class UsersController {
     @ApiResponse({status: 200})
     @Patch(':id')
     @UseGuards(JwtAuthGuard)
-    update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    update(@Param('id', ParseUUIDPipe) id: string, @Body() updateUserDto: UpdateUserDto) {
         return this.usersService.updateUser(id, updateUserDto);
     }
 
@@ -48,7 +48,7 @@ export class UsersController {
     @ApiResponse({status: 200})
     @Delete(':id')
     @UseGuards(JwtAuthGuard)
-    remove(@Param('id') id: string) {
+    remove(@Param('id', ParseUUIDPipe) id: string) {
         return this.usersService.softDeleteUser(id);
     }
 }

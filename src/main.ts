@@ -2,12 +2,18 @@ import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
+import { ValidationPipe } from "@nestjs/common";
 
 async function start() {
     const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
  
     const PORT = configService.get<number>('PORT', 5000); 
+        app.useGlobalPipes(new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+    }));
     const config = new DocumentBuilder()
         .setTitle('Мой первый проект на Nest')
         .setDescription('Учиться, учиться и еще раз учиться')

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createRoleDto } from './dto/create-role.dto';
+import { CreateRoleDto } from './dto/create-role.dto';
 import { InjectModel } from '@nestjs/sequelize';
 import { Role } from './roles.model';
 
@@ -10,7 +10,7 @@ export class RolesService {
 
     }
 
-    async createRole(dto: createRoleDto){
+    async createRole(dto: CreateRoleDto){
         const role = await this.roleRepository.create(dto)
         return role;
     }
