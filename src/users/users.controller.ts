@@ -41,7 +41,7 @@ export class UsersController {
     @Patch(':id')
     @UseGuards(JwtAuthGuard)
     update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-        return this.usersService.updateUser(+id, updateUserDto);
+        return this.usersService.updateUser(id, updateUserDto);
     }
 
     @ApiOperation({summary: 'Удаление пользователя'})
@@ -49,6 +49,6 @@ export class UsersController {
     @Delete(':id')
     @UseGuards(JwtAuthGuard)
     remove(@Param('id') id: string) {
-        return this.usersService.softDeleteUser(+id);
+        return this.usersService.softDeleteUser(id);
     }
 }

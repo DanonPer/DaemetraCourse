@@ -18,7 +18,7 @@ export class UsersService {
         if (!role) {
             throw new Error('Роли "USER" нет в БД');
         }
-        await user.$set('roles', [role.id])
+        await user.$set('roles', [role.id.toString()])
         user.roles = [role]
         return user;
     }
@@ -63,12 +63,12 @@ export class UsersService {
         return user;
     }
 
-    async getUserById(id: number){
+    async getUserById(id: string){
         const user = await this.userRepository.findOne({where:{id}, include: {all:true},paranoid: false});
         return user;
     }
 
-    async updateUser(id: number, updateUserDto: UpdateUserDto) {
+    async updateUser(id: string, updateUserDto: UpdateUserDto) {
         const user = await this.userRepository.findByPk(id);
         
         if (!user) {
@@ -86,7 +86,7 @@ export class UsersService {
         });
     }
 
-    async softDeleteUser(id: number) {
+    async softDeleteUser(id: string) {
         const user = await this.userRepository.findByPk(id);
         
         if (!user) {

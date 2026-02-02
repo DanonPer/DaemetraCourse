@@ -1,6 +1,7 @@
 import { BelongsToMany, Column, DataType, Model, Table } from "sequelize-typescript";
 import { User } from "src/users/users.model";
 import { UserRole } from "./user-roles.model";
+import { v4 as uuidv4 } from 'uuid'; 
 
 interface RoleCreationAttrs {
     value: string;
@@ -10,8 +11,8 @@ interface RoleCreationAttrs {
 @Table({ tableName: 'roles' })
 export class Role extends Model<Role, RoleCreationAttrs> {
 
-    @Column({ type: DataType.INTEGER, unique: true, autoIncrement: true, primaryKey: true })
-        declare id: number;
+    @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4, primaryKey: true, allowNull: false})
+        declare id: string;
 
     @Column({ type: DataType.STRING, unique: true, allowNull: false })
         value: string;

@@ -2,6 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { BelongsToMany, Column, DataType, Model, Table } from "sequelize-typescript";
 import { Role } from "src/roles/roles.model";
 import { UserRole } from "src/roles/user-roles.model";
+import { v4 as uuidv4 } from 'uuid';
 
 interface UserCreationAttrs {
     login: string;
@@ -14,8 +15,8 @@ interface UserCreationAttrs {
 @Table({ tableName: 'users' })
 export class User extends Model<User, UserCreationAttrs> {
     @ApiProperty({example: '1', description: 'Уникальный идентификатор'})
-    @Column({ type: DataType.INTEGER, unique: true, autoIncrement: true, primaryKey: true })
-        declare id: number;
+    @Column({ type: DataType.UUID, defaultValue: DataType.UUIDV4, primaryKey: true, allowNull: false })
+        declare id: string;
 
     @ApiProperty({example: 'TestUser', description: 'Логин'})
     @Column({ type: DataType.STRING, unique: true, allowNull: false })
