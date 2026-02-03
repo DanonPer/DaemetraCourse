@@ -11,6 +11,10 @@ export class JwtAuthGuard implements CanActivate {
         const req = context.switchToHttp().getRequest()
         try {
             const authHeader = req.headers.authorization;
+            if (!authHeader) {
+                throw new UnauthorizedException({message: 'Пользователь не авторизован'});
+            }
+            
             const bearer = authHeader.split(' ')[0]
             const token = authHeader.split(' ')[1]
 
@@ -25,7 +29,6 @@ export class JwtAuthGuard implements CanActivate {
             if (e.name === 'TokenExpiredError') {
                 throw new UnauthorizedException({ 
                     message: 'Истек срок действия Access token',
-                    code: 'TOKEN_EXPIRED'
                 });
             }
             throw new UnauthorizedException({message: 'Пользователь не авторизован'})
