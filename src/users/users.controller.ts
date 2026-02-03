@@ -6,6 +6,7 @@ import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from './users.model';
+import { UserDecorator } from './user.decorator';
 
 @ApiTags('Пользователи')
 @Controller('users')
@@ -32,8 +33,8 @@ export class UsersController {
     @ApiResponse({status: 200})
     @Get('me')
     @UseGuards(JwtAuthGuard)
-    getCurrentUser(@Request() req) {
-        return this.usersService.getUserById(req.user.id);
+    getCurrentUser(@UserDecorator('id') userId: string) {
+        return this.usersService.getUserById(userId);
     }
 
     @ApiOperation({summary: 'Обновление пользователя'})

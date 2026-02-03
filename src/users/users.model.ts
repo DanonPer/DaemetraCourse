@@ -10,7 +10,6 @@ interface UserCreationAttrs {
     password: string;
     age: number;
     description?: string;
-    deletedAt?: Date;
 }
 
 @Table({ tableName: 'users', paranoid: true, defaultScope: { where: { deletedAt: null }}})
