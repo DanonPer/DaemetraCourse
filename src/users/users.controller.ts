@@ -6,7 +6,7 @@ import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from './users.model';
-import { UserDecorator } from './user.decorator';
+import { UserDecorator } from '../common/user.decorator';
 
 @ApiTags('Пользователи')
 @Controller('users')
