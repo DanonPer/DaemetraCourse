@@ -7,10 +7,11 @@ import { ConfigService } from '@nestjs/config';
 import { JwtSignOptions } from '@nestjs/jwt';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { RefreshToken } from './refresh-token.model';
+import { TokenService } from './token.service';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, TokenService],
   imports: [
     SequelizeModule.forFeature([RefreshToken]),
     forwardRef(() => UsersModule),
@@ -27,9 +28,6 @@ import { RefreshToken } from './refresh-token.model';
       inject: [ConfigService]
     })
   ],
-  exports: [
-    AuthService,
-    JwtModule
-  ]
+  exports: [ AuthService, JwtModule, TokenService ]
 })
 export class AuthModule {}
