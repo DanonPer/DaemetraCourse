@@ -1,5 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { RefreshTokenDto } from './dto/RefreshTokenDto';
@@ -8,20 +8,23 @@ import { RefreshTokenDto } from './dto/RefreshTokenDto';
 @Controller('auth')
 export class AuthController {
 
-    constructor (private authServise: AuthService){}
+    constructor(private authService: AuthService){}
 
+    @ApiOperation({summary: 'Вход в систему'})
     @Post('/login')
     login(@Body() userDto: CreateUserDto){
-        return this.authServise.login(userDto)
+        return this.authService.login(userDto);
     }
 
+    @ApiOperation({summary: 'Регистрация'})
     @Post('/registration')
     registration(@Body() userDto: CreateUserDto){
-        return this.authServise.registration(userDto)
+        return this.authService.registration(userDto);
     }
 
+    @ApiOperation({summary: 'Обновление токенов'})
     @Post('/refresh')
     refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-        return this.authServise.refresh(refreshTokenDto.refreshToken);
+        return this.authService.refresh(refreshTokenDto.refreshToken);
     }
 }

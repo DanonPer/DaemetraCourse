@@ -5,11 +5,14 @@ import { UsersModule } from 'src/users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtSignOptions } from '@nestjs/jwt';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { RefreshToken } from './refresh-token.model';
 
 @Module({
   controllers: [AuthController],
   providers: [AuthService],
   imports: [
+    SequelizeModule.forFeature([RefreshToken]),
     forwardRef(() => UsersModule),
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
