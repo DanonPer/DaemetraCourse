@@ -5,7 +5,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { User } from './users.model';
+import { User } from './schemas/user.schema';
 import { UserDecorator } from '../common/user.decorator';
 
 @ApiTags('Пользователи')
