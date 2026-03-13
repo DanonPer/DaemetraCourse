@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcryptjs';
@@ -21,7 +26,10 @@ export class AuthService {
     const candidate = await this.userService.getUserByLogin(userDto.login);
 
     if (candidate) {
-      throw new HttpException('Пользователь с таким login существует', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Пользователь с таким login существует',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const hashPassword = await bcrypt.hash(userDto.password, 5);
@@ -41,13 +49,20 @@ export class AuthService {
     const user = await this.userService.getUserByLogin(userDto.login);
 
     if (!user) {
-      throw new UnauthorizedException({ message: 'Некорректный логин или пароль' });
+      throw new UnauthorizedException({
+        message: 'Некорректный логин или пароль',
+      });
     }
 
-    const passwordEquals = await bcrypt.compare(userDto.password, user.password);
+    const passwordEquals = await bcrypt.compare(
+      userDto.password,
+      user.password,
+    );
 
     if (!passwordEquals) {
-      throw new UnauthorizedException({ message: 'Некорректный логин или пароль' });
+      throw new UnauthorizedException({
+        message: 'Некорректный логин или пароль',
+      });
     }
 
     return user;

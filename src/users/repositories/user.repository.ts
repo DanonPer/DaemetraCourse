@@ -1,7 +1,7 @@
-import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { User, UserDocument } from "../schemas/user.schema";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from '../schemas/user.schema';
 
 @Injectable()
 export class UserRepository {
@@ -22,7 +22,11 @@ export class UserRepository {
     return this.userModel.findOne({ id }).exec();
   }
 
-  async findAndCount(filter: Record<string, any>, limit: number, offset: number) {
+  async findAndCount(
+    filter: Record<string, any>,
+    limit: number,
+    offset: number,
+  ) {
     const [count, rows] = await Promise.all([
       this.userModel.countDocuments(filter).exec(),
       this.userModel.find(filter).skip(offset).limit(limit).exec(),

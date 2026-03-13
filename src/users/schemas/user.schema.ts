@@ -1,6 +1,6 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { HydratedDocument } from "mongoose";
-import { v4 as uuidv4 } from "uuid";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -21,10 +21,10 @@ export class User {
   @Prop({ required: true })
   age: number;
 
-  @Prop({ default: "" })
+  @Prop({ default: '' })
   description: string;
 
-  @Prop({ type: [String], default: ["USER"] })
+  @Prop({ type: [String], default: ['USER'] })
   roles: string[];
 
   @Prop({ type: Date, default: null })

@@ -7,24 +7,23 @@ import { RefreshTokenDto } from './dto/RefreshTokenDto';
 @ApiTags('Авторизация')
 @Controller('auth')
 export class AuthController {
+  constructor(private authService: AuthService) {}
 
-    constructor(private authService: AuthService){}
+  @ApiOperation({ summary: 'Вход в систему' })
+  @Post('/login')
+  login(@Body() userDto: CreateUserDto) {
+    return this.authService.login(userDto);
+  }
 
-    @ApiOperation({summary: 'Вход в систему'})
-    @Post('/login')
-    login(@Body() userDto: CreateUserDto){
-        return this.authService.login(userDto);
-    }
+  @ApiOperation({ summary: 'Регистрация' })
+  @Post('/registration')
+  registration(@Body() userDto: CreateUserDto) {
+    return this.authService.registration(userDto);
+  }
 
-    @ApiOperation({summary: 'Регистрация'})
-    @Post('/registration')
-    registration(@Body() userDto: CreateUserDto){
-        return this.authService.registration(userDto);
-    }
-
-    @ApiOperation({summary: 'Обновление токенов'})
-    @Post('/refresh')
-    refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-        return this.authService.refresh(refreshTokenDto.refreshToken);
-    }
+  @ApiOperation({ summary: 'Обновление токенов' })
+  @Post('/refresh')
+  refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refresh(refreshTokenDto.refreshToken);
+  }
 }

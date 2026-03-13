@@ -3,13 +3,16 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { ConfigService } from "@nestjs/config";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { RefreshToken, RefreshTokenDocument } from "./schemas/refresh-token.schema";
-import { User, UserDocument } from "src/users/schemas/user.schema";
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  RefreshToken,
+  RefreshTokenDocument,
+} from './schemas/refresh-token.schema';
+import { User, UserDocument } from 'src/users/schemas/user.schema';
 
 @Injectable()
 export class TokenService {
@@ -24,17 +27,20 @@ export class TokenService {
 
   async refresh(refreshToken: string) {
     if (!refreshToken) {
-      throw new BadRequestException("Refresh токен не предоставлен");
+      throw new BadRequestException('Refresh токен не предоставлен');
     }
 
     try {
       const userData = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get<string>("PRIVATE_KEY"),
+        secret: this.configService.get<string>('PRIVATE_KEY'),
       });
 
-      const user = await this.userModel.findOne({ id: userData.id, deletedAt: null });
+      const user = await this.userModel.findOne({
+        id: userData.id,
+        deletedAt: null,
+      });
       if (!user) {
-        throw new NotFoundException("Пользователь не найден");
+        throw new NotFoundException('Пользователь не найден');
       }
 
       const tokenRecord = await this.refreshTokenModel.findOne({
@@ -43,18 +49,20 @@ export class TokenService {
       });
 
       if (!tokenRecord) {
-        throw new UnauthorizedException("Токен не найден или уже использован");
+        throw new UnauthorizedException('Токен не найден или уже использован');
       }
 
       if (new Date() > tokenRecord.expiresAt) {
         await this.refreshTokenModel.deleteOne({ _id: tokenRecord._id });
-        throw new UnauthorizedException("Refresh токен истек");
+        throw new UnauthorizedException('Refresh токен истек');
       }
 
       await this.refreshTokenModel.deleteOne({ _id: tokenRecord._id });
       return this.generateAndSaveTokens(user);
     } catch {
-      throw new UnauthorizedException({ message: "Refresh токен истек или невалиден" });
+      throw new UnauthorizedException({
+        message: 'Refresh токен истек или невалиден',
+      });
     }
   }
 
@@ -71,10 +79,16 @@ export class TokenService {
       roles: user.roles,
     };
 
-    const accessTokenExpiresIn = this.configService.get<string>("ACCESS_TOKEN_EXPIRES_IN", "15m");
-    const refreshTokenExpiresIn = this.configService.get<string>("REFRESH_TOKEN_EXPIRES_IN", "7d");
+    const accessTokenExpiresIn = this.configService.get<string>(
+      'ACCESS_TOKEN_EXPIRES_IN',
+      '15m',
+    );
+    const refreshTokenExpiresIn = this.configService.get<string>(
+      'REFRESH_TOKEN_EXPIRES_IN',
+      '7d',
+    );
     const refreshTokenDbExpiresDays = this.configService.get<number>(
-      "REFRESH_TOKEN_DB_EXPIRES_DAYS",
+      'REFRESH_TOKEN_DB_EXPIRES_DAYS',
       7,
     );
 
@@ -102,7 +116,10 @@ export class TokenService {
   }
 
   private async saveRefreshToken(userId: string, refreshToken: string) {
-    const expiresDays = this.configService.get<number>("REFRESH_TOKEN_DB_EXPIRES_DAYS", 7);
+    const expiresDays = this.configService.get<number>(
+      'REFRESH_TOKEN_DB_EXPIRES_DAYS',
+      7,
+    );
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresDays);
 

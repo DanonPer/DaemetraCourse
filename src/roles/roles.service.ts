@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { CreateRoleDto } from "./dto/create-role.dto";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Role, RoleDocument } from "./schemas/role.schema";
+import { Injectable } from '@nestjs/common';
+import { CreateRoleDto } from './dto/create-role.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Role, RoleDocument } from './schemas/role.schema';
 
 @Injectable()
 export class RolesService {

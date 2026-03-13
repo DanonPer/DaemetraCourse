@@ -1,6 +1,6 @@
 import { IsString } from 'class-validator';
 
 export class RefreshTokenDto {
-    @IsString({ message: 'Должно быть строкой' })
-    refreshToken: string;
+  @IsString({ message: 'Должно быть строкой' })
+  refreshToken: string;
 }

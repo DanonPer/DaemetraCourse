@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { CreateUserDto } from "./dto/create-user.dto";
-import { RolesService } from "src/roles/roles.service";
-import { GetUsersDto } from "./dto/get-users.dto";
-import { UpdateUserDto } from "./dto/update-user.dto";
-import { UserRepository } from "./repositories/user.repository";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreateUserDto } from './dto/create-user.dto';
+import { RolesService } from 'src/roles/roles.service';
+import { GetUsersDto } from './dto/get-users.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRepository } from './repositories/user.repository';
 
 @Injectable()
 export class UsersService {
@@ -13,7 +13,7 @@ export class UsersService {
   ) {}
 
   async createUser(dto: CreateUserDto) {
-    const role = await this.roleService.getRoleByValue("USER");
+    const role = await this.roleService.getRoleByValue('USER');
     if (!role) {
       throw new NotFoundException('Роли "USER" нет в БД');
     }
@@ -33,10 +33,14 @@ export class UsersService {
 
     const where: any = { deletedAt: null };
     if (login) {
-      where.login = { $regex: login, $options: "i" };
+      where.login = { $regex: login, $options: 'i' };
     }
 
-    const { count, rows: users } = await this.userRepository.findAndCount(where, limit, offset);
+    const { count, rows: users } = await this.userRepository.findAndCount(
+      where,
+      limit,
+      offset,
+    );
 
     return {
       users,
