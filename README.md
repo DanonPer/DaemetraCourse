@@ -44,6 +44,24 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Docker
+
+Build the image:
+
+```bash
+$ docker build -t daemetra-course .
+```
+
+Run the container with the production environment file:
+
+```bash
+$ docker run --env-file .production.env -p 5000:5000 daemetra-course
+```
+
+If MongoDB is running on your local machine, `MONGODB_URI` in `.production.env`
+should point to `host.docker.internal` instead of `localhost`, because inside a
+container `localhost` refers to the container itself.
+
 ## Run tests
 
 ```bash
