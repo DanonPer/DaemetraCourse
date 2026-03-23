@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RolesModule } from './roles/roles.module';
 import { AuthModule } from './auth/auth.module';
 import { AvatarsModule } from './avatars/avatars.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   controllers: [],
@@ -14,6 +15,7 @@ import { AvatarsModule } from './avatars/avatars.module';
       envFilePath: `.${process.env.NODE_ENV || 'development'}.env`,
       isGlobal: true,
     }),
+    CacheModule,
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

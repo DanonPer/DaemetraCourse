@@ -4,21 +4,21 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
   UseGuards,
-  ParseUUIDPipe,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UsersService } from './users.service';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { UserDecorator } from '../common/user.decorator';
+import { CreateUserDto } from './dto/create-user.dto';
 import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from './schemas/user.schema';
-import { UserDecorator } from '../common/user.decorator';
+import { UsersService } from './users.service';
 
 @ApiTags('Пользователи')
 @Controller('users')
@@ -54,6 +54,14 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   getCurrentUser(@UserDecorator('id') userId: string) {
     return this.usersService.getUserById(userId);
+  }
+
+  @ApiOperation({ summary: 'Получение пользователя по id' })
+  @ApiResponse({ status: 200, type: User })
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  getById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.getActiveUserById(id);
   }
 
   @ApiOperation({ summary: 'Обновление пользователя' })

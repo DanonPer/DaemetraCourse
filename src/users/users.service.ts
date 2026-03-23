@@ -1,16 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { RedisCacheService } from 'src/cache/redis-cache.service';
 import { RolesService } from 'src/roles/roles.service';
+import { CreateUserDto } from './dto/create-user.dto';
 import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './repositories/user.repository';
+
+const USERS_CACHE_TTL_SECONDS = 30;
 
 @Injectable()
 export class UsersService {
   constructor(
     private userRepository: UserRepository,
     private roleService: RolesService,
+    private redisCacheService: RedisCacheService,
   ) {}
 
   async createUser(dto: CreateUserDto) {
@@ -25,11 +29,18 @@ export class UsersService {
       deletedAt: null,
     });
 
+    await this.redisCacheService.deleteByPattern('users:*');
     return user;
   }
 
   async getAllUsers(getUsersDto: GetUsersDto) {
     const { login, page = 1, limit = 10 } = getUsersDto;
+    const cacheKey = `users:list:${login ?? ''}:${page}:${limit}`;
+    const cachedUsers = await this.redisCacheService.get(cacheKey);
+    if (cachedUsers !== undefined) {
+      return cachedUsers;
+    }
+
     const offset = (page - 1) * limit;
 
     const where: any = { deletedAt: null };
@@ -43,13 +54,21 @@ export class UsersService {
       offset,
     );
 
-    return {
+    const response = {
       users,
       pagination: {
         total: count,
         totalPages: Math.ceil(count / limit),
       },
     };
+
+    await this.redisCacheService.set(
+      cacheKey,
+      response,
+      USERS_CACHE_TTL_SECONDS,
+    );
+
+    return response;
   }
 
   async getMostActiveUsers(getMostActiveUsersDto: GetMostActiveUsersDto) {
@@ -82,7 +101,16 @@ export class UsersService {
   }
 
   async getActiveUserById(id: string) {
-    return this.userRepository.findOne({ id, deletedAt: null });
+    const cacheKey = `users:profile:${id}`;
+    const cachedUser = await this.redisCacheService.get(cacheKey);
+    if (cachedUser !== undefined) {
+      return cachedUser;
+    }
+
+    const user = await this.userRepository.findOne({ id, deletedAt: null });
+    await this.redisCacheService.set(cacheKey, user, USERS_CACHE_TTL_SECONDS);
+
+    return user;
   }
 
   async updateUser(id: string, updateUserDto: UpdateUserDto) {
@@ -97,7 +125,10 @@ export class UsersService {
       data.roles = roles;
     }
 
-    return this.userRepository.updateByIdField(id, data);
+    const updatedUser = await this.userRepository.updateByIdField(id, data);
+    await this.redisCacheService.deleteByPattern('users:*');
+
+    return updatedUser;
   }
 
   async softDeleteUser(id: string) {
@@ -107,6 +138,8 @@ export class UsersService {
     }
 
     await this.userRepository.softDeleteByIdField(id);
+    await this.redisCacheService.deleteByPattern('users:*');
+
     return {
       message: `Пользователь с id ${id} - удалён`,
       deletedAt: new Date(),

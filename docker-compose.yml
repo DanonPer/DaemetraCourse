@@ -5,6 +5,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      redis:
+        condition: service_started
       minio:
         condition: service_started
     env_file:
@@ -18,6 +20,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: main
+      REDIS_URL: redis://redis:6379
     ports:
       - "5000:5000"
     restart: unless-stopped
@@ -36,6 +39,14 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    restart: unless-stopped
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     restart: unless-stopped
     networks:
       - backend
