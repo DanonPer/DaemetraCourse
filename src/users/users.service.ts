@@ -63,6 +63,10 @@ export class UsersService {
     return this.userRepository.findOne({ id });
   }
 
+  async getActiveUserById(id: string) {
+    return this.userRepository.findOne({ id, deletedAt: null });
+  }
+
   async updateUser(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.userRepository.findOne({ id, deletedAt: null });
     if (!user) {

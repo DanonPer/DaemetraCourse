@@ -1,5 +1,6 @@
 import * as AWS from '@aws-sdk/client-s3';
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { IFileService } from '../files.adapter';
 import { S3Lib } from './constants/do-spaces-service-lib.constant';
@@ -12,11 +13,14 @@ import { RemoveFilePayloadDto } from './dto/remove-file-payload.dto';
 @Injectable()
 export class S3Service extends IFileService {
   private readonly logger = new Logger(S3Service.name);
+  private readonly bucketName: string;
 
-  private readonly bucketName = 'main';
-
-  constructor(@Inject(S3Lib) private readonly S3: AWS.S3) {
+  constructor(
+    @Inject(S3Lib) private readonly S3: AWS.S3,
+    private readonly configService: ConfigService,
+  ) {
     super();
+    this.bucketName = this.configService.get<string>('MINIO_BUCKET', 'images');
   }
 
   async uploadFile(dto: UploadFilePayloadDto): Promise<UploadFileResultDto> {

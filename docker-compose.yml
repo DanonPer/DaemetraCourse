@@ -17,7 +17,7 @@ services:
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: images
+      MINIO_BUCKET: main
     ports:
       - "5000:5000"
     restart: unless-stopped
