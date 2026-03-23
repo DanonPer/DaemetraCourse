@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { RolesService } from 'src/roles/roles.service';
+import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './repositories/user.repository';
@@ -47,6 +48,23 @@ export class UsersService {
       pagination: {
         total: count,
         totalPages: Math.ceil(count / limit),
+      },
+    };
+  }
+
+  async getMostActiveUsers(getMostActiveUsersDto: GetMostActiveUsersDto) {
+    const { page = 1, limit = 10 } = getMostActiveUsersDto;
+    const { total, users } = await this.userRepository.findMostActiveUsers(
+      getMostActiveUsersDto,
+    );
+
+    return {
+      users,
+      pagination: {
+        total,
+        totalPages: Math.ceil(total / limit),
+        page,
+        limit,
       },
     };
   }

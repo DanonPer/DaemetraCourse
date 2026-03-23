@@ -7,13 +7,13 @@ import {
   Patch,
   Post,
   Query,
-  Request,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -38,6 +38,14 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   getAll(@Query() getUsersDto: GetUsersDto) {
     return this.usersService.getAllUsers(getUsersDto);
+  }
+
+  @ApiOperation({ summary: 'Получение самых активных пользователей' })
+  @ApiResponse({ status: 200 })
+  @Get('most-active')
+  @UseGuards(JwtAuthGuard)
+  getMostActiveUsers(@Query() getMostActiveUsersDto: GetMostActiveUsersDto) {
+    return this.usersService.getMostActiveUsers(getMostActiveUsersDto);
   }
 
   @ApiOperation({ summary: 'Получение информации о себе' })

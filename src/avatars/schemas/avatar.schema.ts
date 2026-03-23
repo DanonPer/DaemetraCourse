@@ -23,3 +23,5 @@ export class Avatar {
 }
 
 export const AvatarSchema = SchemaFactory.createForClass(Avatar);
+
+AvatarSchema.index({ userId: 1, deletedAt: 1, uploadedAt: -1 });
