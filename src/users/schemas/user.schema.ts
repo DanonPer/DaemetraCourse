@@ -27,6 +27,9 @@ export class User {
   @Prop({ type: [String], default: ['USER'] })
   roles: string[];
 
+  @Prop({ required: true, default: 0, min: 0 })
+  balance: number;
+
   @Prop({ type: Date, default: null })
   deletedAt: Date | null;
 }

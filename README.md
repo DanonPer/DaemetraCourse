@@ -17,6 +17,8 @@ NestJS API с MongoDB, Redis и MinIO.
 docker compose up --build
 ```
 
+MongoDB в compose запускается как `replica set`, поэтому переводы с транзакциями будут работать без ручной настройки.
+
 3. После запуска сервисы будут доступны по адресам:
 
 - API: `http://localhost:5000`
@@ -62,7 +64,7 @@ docker compose up -d mongo redis minio
 
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/nest-db
+MONGODB_URI=mongodb://localhost:27017/nest-db?replicaSet=rs0
 
 PRIVATE_KEY=private_keys
 PUBLIC_KEY=public_key

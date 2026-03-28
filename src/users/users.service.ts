@@ -1,9 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 import { RedisCacheService } from 'src/cache/redis-cache.service';
 import { RolesService } from 'src/roles/roles.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';
+import { TransferMoneyDto } from './dto/transfer-money.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './repositories/user.repository';
 
@@ -15,6 +22,7 @@ export class UsersService {
     private userRepository: UserRepository,
     private roleService: RolesService,
     private redisCacheService: RedisCacheService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   async createUser(dto: CreateUserDto) {
@@ -25,6 +33,7 @@ export class UsersService {
 
     const user = await this.userRepository.create({
       ...dto,
+      balance: 0,
       roles: [role.value],
       deletedAt: null,
     });
@@ -43,7 +52,7 @@ export class UsersService {
 
     const offset = (page - 1) * limit;
 
-    const where: any = { deletedAt: null };
+    const where: Record<string, unknown> = { deletedAt: null };
     if (login) {
       where.login = { $regex: login, $options: 'i' };
     }
@@ -119,8 +128,8 @@ export class UsersService {
       throw new NotFoundException(`Пользователь с id ${id} не найден`);
     }
 
-    const data: any = { ...updateUserDto };
-    const roles = (updateUserDto as any).roles;
+    const data = { ...updateUserDto } as UpdateUserDto & { roles?: string[] };
+    const roles = (updateUserDto as UpdateUserDto & { roles?: string[] }).roles;
     if (roles) {
       data.roles = roles;
     }
@@ -134,7 +143,7 @@ export class UsersService {
   async softDeleteUser(id: string) {
     const user = await this.userRepository.findOne({ id, deletedAt: null });
     if (!user) {
-      throw new NotFoundException(`Пользователь с id ${id} не найден`);
+      throw new NotFoundException(`User with id ${id} was not found`);
     }
 
     await this.userRepository.softDeleteByIdField(id);
@@ -144,5 +153,121 @@ export class UsersService {
       message: `Пользователь с id ${id} - удалён`,
       deletedAt: new Date(),
     };
+  }
+
+  async transferMoney(transferMoneyDto: TransferMoneyDto) {
+    const { fromUserId, toUserId, amount } = transferMoneyDto;
+
+    if (fromUserId === toUserId) {
+      throw new BadRequestException('Вы не можете перевести деньги сами себе');
+    }
+
+    const transferAmountInCents = this.parseAmountToCents(amount);
+    const session = await this.connection.startSession();
+
+    try {
+      let transferResult:
+        | {
+            message: string;
+            amount: string;
+            fromUser: { id: string; balance: number };
+            toUser: { id: string; balance: number };
+          }
+        | undefined;
+
+      await session.withTransaction(async () => {
+        const [fromUser, toUser] = await Promise.all([
+          this.userRepository.findOne(
+            { id: fromUserId, deletedAt: null },
+            session,
+          ),
+          this.userRepository.findOne(
+            { id: toUserId, deletedAt: null },
+            session,
+          ),
+        ]);
+
+        if (!fromUser) {
+          throw new NotFoundException(
+            `Отправитель с идентификатором ${fromUserId} не найден`,
+          );
+        }
+
+        if (!toUser) {
+          throw new NotFoundException(
+            `Получатель с идентификатором ${toUserId} не найден`,
+          );
+        }
+
+        const senderBalanceInCents = this.balanceToCents(fromUser.balance);
+        if (senderBalanceInCents < transferAmountInCents) {
+          throw new BadRequestException('Недостаточно средств');
+        }
+
+        const receiverBalanceInCents = this.balanceToCents(toUser.balance);
+        const updatedSenderBalance = this.centsToDollars(
+          senderBalanceInCents - transferAmountInCents,
+        );
+        const updatedReceiverBalance = this.centsToDollars(
+          receiverBalanceInCents + transferAmountInCents,
+        );
+
+        await Promise.all([
+          this.userRepository.updateByIdField(
+            fromUserId,
+            { balance: updatedSenderBalance },
+            session,
+          ),
+          this.userRepository.updateByIdField(
+            toUserId,
+            { balance: updatedReceiverBalance },
+            session,
+          ),
+        ]);
+
+        transferResult = {
+          message: 'Передача успешно завершена',
+          amount: this.formatCentsAsAmount(transferAmountInCents),
+          fromUser: {
+            id: fromUserId,
+            balance: updatedSenderBalance,
+          },
+          toUser: {
+            id: toUserId,
+            balance: updatedReceiverBalance,
+          },
+        };
+      });
+
+      await this.redisCacheService.deleteByPattern('users:*');
+      return transferResult;
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  private parseAmountToCents(amount: string) {
+    const [dollarsPart, centsPart = ''] = amount.split('.');
+    const dollars = Number(dollarsPart);
+    const cents = Number(centsPart.padEnd(2, '0'));
+    const total = dollars * 100 + cents;
+
+    if (!Number.isInteger(total) || total <= 0) {
+      throw new BadRequestException('Сумма перевода должна быть больше 0');
+    }
+
+    return total;
+  }
+
+  private balanceToCents(balance: number | undefined) {
+    return Math.round((balance ?? 0) * 100);
+  }
+
+  private centsToDollars(cents: number) {
+    return Number((cents / 100).toFixed(2));
+  }
+
+  private formatCentsAsAmount(cents: number) {
+    return this.centsToDollars(cents).toFixed(2);
   }
 }

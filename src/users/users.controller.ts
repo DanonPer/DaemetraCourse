@@ -16,6 +16,7 @@ import { UserDecorator } from '../common/user.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';
+import { TransferMoneyDto } from './dto/transfer-money.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './schemas/user.schema';
 import { UsersService } from './users.service';
@@ -30,6 +31,14 @@ export class UsersController {
   @Post()
   create(@Body() userDto: CreateUserDto) {
     return this.usersService.createUser(userDto);
+  }
+
+  @ApiOperation({ summary: 'Переводить деньги между пользователями' })
+  @ApiResponse({ status: 200 })
+  @Post('transfer')
+  @UseGuards(JwtAuthGuard)
+  transferMoney(@Body() transferMoneyDto: TransferMoneyDto) {
+    return this.usersService.transferMoney(transferMoneyDto);
   }
 
   @ApiOperation({ summary: 'Получение всех пользователей' })

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { GetMostActiveUsersDto } from '../dto/get-most-active-users.dto';
 import { User, UserDocument } from '../schemas/user.schema';
 
@@ -15,12 +15,12 @@ export class UserRepository {
     return this.userModel.create(data);
   }
 
-  findOne(filter: Record<string, any>) {
-    return this.userModel.findOne(filter).exec();
+  findOne(filter: Record<string, any>, session?: ClientSession) {
+    return this.userModel.findOne(filter, null, { session }).exec();
   }
 
-  findByIdField(id: string) {
-    return this.userModel.findOne({ id }).exec();
+  findByIdField(id: string, session?: ClientSession) {
+    return this.userModel.findOne({ id }, null, { session }).exec();
   }
 
   async findAndCount(
@@ -36,13 +36,19 @@ export class UserRepository {
     return { count, rows };
   }
 
-  updateByIdField(id: string, data: Partial<User>) {
-    return this.userModel.findOneAndUpdate({ id }, data, { new: true }).exec();
+  updateByIdField(id: string, data: Partial<User>, session?: ClientSession) {
+    return this.userModel
+      .findOneAndUpdate({ id }, data, { new: true, session })
+      .exec();
   }
 
-  softDeleteByIdField(id: string) {
+  softDeleteByIdField(id: string, session?: ClientSession) {
     return this.userModel
-      .findOneAndUpdate({ id }, { deletedAt: new Date() }, { new: true })
+      .findOneAndUpdate(
+        { id },
+        { deletedAt: new Date() },
+        { new: true, session },
+      )
       .exec();
   }
 
