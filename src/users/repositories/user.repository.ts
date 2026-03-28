@@ -52,6 +52,12 @@ export class UserRepository {
       .exec();
   }
 
+  resetAllBalances() {
+    return this.userModel
+      .updateMany({ deletedAt: null }, { $set: { balance: 0 } })
+      .exec();
+  }
+
   async findMostActiveUsers(dto: GetMostActiveUsersDto) {
     const { ageFrom = 1, ageTo = 100, page = 1, limit = 10 } = dto;
     const offset = (page - 1) * limit;

@@ -155,6 +155,15 @@ export class UsersService {
     };
   }
 
+  async resetAllBalances() {
+    const result = await this.userRepository.resetAllBalances();
+    await this.redisCacheService.deleteByPattern('users:*');
+
+    return {
+      modifiedCount: result.modifiedCount,
+    };
+  }
+
   async transferMoney(transferMoneyDto: TransferMoneyDto) {
     const { fromUserId, toUserId, amount } = transferMoneyDto;
 

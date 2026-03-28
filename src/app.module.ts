@@ -1,11 +1,13 @@
+import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { RolesModule } from './roles/roles.module';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 import { AvatarsModule } from './avatars/avatars.module';
+import { BalanceResetModule } from './balance-reset/balance-reset.module';
 import { CacheModule } from './cache/cache.module';
+import { RolesModule } from './roles/roles.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   controllers: [],
@@ -16,6 +18,16 @@ import { CacheModule } from './cache/cache.module';
       isGlobal: true,
     }),
     CacheModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: Number(configService.get<string>('REDIS_PORT', '6379')),
+        },
+      }),
+    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -30,6 +42,7 @@ import { CacheModule } from './cache/cache.module';
     RolesModule,
     AuthModule,
     AvatarsModule,
+    BalanceResetModule,
   ],
 })
 export class AppModule {}
