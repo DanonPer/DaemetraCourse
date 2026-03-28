@@ -55,7 +55,14 @@ Copy-Item .development.env.example .development.env
 3. Поднимите зависимости отдельно. Проще всего через Docker:
 
 ```bash
-docker compose up -d mongo redis minio
+docker compose up -d mongo mongo-init redis minio
+```
+
+Если вы раньше запускали MongoDB без `replica set`, перед повторным подъёмом может понадобиться полная пересборка томов:
+
+```bash
+docker compose down -v
+docker compose up -d mongo mongo-init redis minio
 ```
 
 4. Проверьте значения в `.development.env`.
@@ -97,6 +104,15 @@ npm run start:dev
 
 - API: `http://localhost:5000`
 - Swagger: `http://localhost:5000/api/docs`
+
+## Очереди и фоновые задачи
+
+В проекте используется Bull и Redis для фоновых задач.
+
+Сейчас реализован модуль сброса баланса пользователей:
+
+- ручной запуск через `POST /balance-reset`
+- автоматическая постановка job каждые 10 минут, пока приложение запущено
 
 ## Полезные команды
 

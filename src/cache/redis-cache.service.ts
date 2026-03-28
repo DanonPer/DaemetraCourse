@@ -33,6 +33,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     if (this.client.isOpen) {
+      this.logger.log('Redis cache disconnecting');
       await this.client.quit();
     }
   }
@@ -40,9 +41,11 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   async get<T>(key: string): Promise<T | undefined> {
     const value = await this.client.get(key);
     if (value === null) {
+      this.logger.debug(`Cache miss: key=${key}`);
       return undefined;
     }
 
+    this.logger.debug(`Cache hit: key=${key}`);
     return JSON.parse(value) as T;
   }
 
@@ -50,6 +53,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     await this.client.set(key, JSON.stringify(value), {
       EX: ttlSeconds,
     });
+    this.logger.debug(`Cache set: key=${key}, ttlSeconds=${ttlSeconds}`);
   }
 
   async deleteByPattern(pattern: string) {
@@ -64,6 +68,14 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
     if (keys.length > 0) {
       await this.client.del(keys);
+      this.logger.debug(
+        `Cache delete by pattern: pattern=${pattern}, deletedKeys=${keys.length}`,
+      );
+      return;
     }
+
+    this.logger.debug(
+      `Cache delete by pattern: pattern=${pattern}, deletedKeys=0`,
+    );
   }
 }

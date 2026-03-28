@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
@@ -18,6 +19,8 @@ const USERS_CACHE_TTL_SECONDS = 30;
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private userRepository: UserRepository,
     private roleService: RolesService,
@@ -143,7 +146,7 @@ export class UsersService {
   async softDeleteUser(id: string) {
     const user = await this.userRepository.findOne({ id, deletedAt: null });
     if (!user) {
-      throw new NotFoundException(`User with id ${id} was not found`);
+      throw new NotFoundException(`Пользователь с id ${id} не найден`);
     }
 
     await this.userRepository.softDeleteByIdField(id);
@@ -156,8 +159,14 @@ export class UsersService {
   }
 
   async resetAllBalances() {
+    this.logger.log('Запущено массовое обнуление баланса пользователей');
+
     const result = await this.userRepository.resetAllBalances();
     await this.redisCacheService.deleteByPattern('users:*');
+
+    this.logger.log(
+      `Массовое обнуление баланса завершено, изменено пользователей: ${result.modifiedCount}`,
+    );
 
     return {
       modifiedCount: result.modifiedCount,
@@ -167,7 +176,14 @@ export class UsersService {
   async transferMoney(transferMoneyDto: TransferMoneyDto) {
     const { fromUserId, toUserId, amount } = transferMoneyDto;
 
+    this.logger.log(
+      `Запрошен перевод денег: fromUserId=${fromUserId}, toUserId=${toUserId}, amount=${amount}`,
+    );
+
     if (fromUserId === toUserId) {
+      this.logger.warn(
+        `Отклонён перевод самому себе: userId=${fromUserId}, amount=${amount}`,
+      );
       throw new BadRequestException('Вы не можете перевести деньги сами себе');
     }
 
@@ -197,12 +213,18 @@ export class UsersService {
         ]);
 
         if (!fromUser) {
+          this.logger.warn(
+            `Перевод отклонён: отправитель не найден, fromUserId=${fromUserId}`,
+          );
           throw new NotFoundException(
             `Отправитель с идентификатором ${fromUserId} не найден`,
           );
         }
 
         if (!toUser) {
+          this.logger.warn(
+            `Перевод отклонён: получатель не найден, toUserId=${toUserId}`,
+          );
           throw new NotFoundException(
             `Получатель с идентификатором ${toUserId} не найден`,
           );
@@ -210,6 +232,9 @@ export class UsersService {
 
         const senderBalanceInCents = this.balanceToCents(fromUser.balance);
         if (senderBalanceInCents < transferAmountInCents) {
+          this.logger.warn(
+            `Перевод отклонён из-за нехватки средств: fromUserId=${fromUserId}, balanceInCents=${senderBalanceInCents}, transferAmountInCents=${transferAmountInCents}`,
+          );
           throw new BadRequestException('Недостаточно средств');
         }
 
@@ -246,12 +271,30 @@ export class UsersService {
             balance: updatedReceiverBalance,
           },
         };
+
+        this.logger.log(
+          `Перевод выполнен успешно: fromUserId=${fromUserId}, toUserId=${toUserId}, amount=${amount}, senderBalance=${updatedSenderBalance}, receiverBalance=${updatedReceiverBalance}`,
+        );
       });
 
       await this.redisCacheService.deleteByPattern('users:*');
       return transferResult;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Неизвестная ошибка';
+      const stack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(
+        `Ошибка при переводе денег: fromUserId=${fromUserId}, toUserId=${toUserId}, amount=${amount}, reason=${message}`,
+        stack,
+      );
+
+      throw error;
     } finally {
       await session.endSession();
+      this.logger.debug(
+        `Сессия перевода завершена: fromUserId=${fromUserId}, toUserId=${toUserId}`,
+      );
     }
   }
 

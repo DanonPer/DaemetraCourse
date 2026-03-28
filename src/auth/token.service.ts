@@ -1,21 +1,24 @@
 import {
-  Injectable,
-  UnauthorizedException,
   BadRequestException,
+  Injectable,
+  Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { User, UserDocument } from 'src/users/schemas/user.schema';
 import {
   RefreshToken,
   RefreshTokenDocument,
 } from './schemas/refresh-token.schema';
-import { User, UserDocument } from 'src/users/schemas/user.schema';
 
 @Injectable()
 export class TokenService {
+  private readonly logger = new Logger(TokenService.name);
+
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
@@ -27,6 +30,9 @@ export class TokenService {
 
   async refresh(refreshToken: string) {
     if (!refreshToken) {
+      this.logger.warn(
+        'Обновление токенов отклонено: refresh token не передан',
+      );
       throw new BadRequestException('Refresh токен не предоставлен');
     }
 
@@ -35,11 +41,16 @@ export class TokenService {
         secret: this.configService.get<string>('PRIVATE_KEY'),
       });
 
+      this.logger.debug(`Refresh token провалидирован: userId=${userData.id}`);
+
       const user = await this.userModel.findOne({
         id: userData.id,
         deletedAt: null,
       });
       if (!user) {
+        this.logger.warn(
+          `Обновление токенов отклонено: пользователь не найден, userId=${userData.id}`,
+        );
         throw new NotFoundException('Пользователь не найден');
       }
 
@@ -49,17 +60,38 @@ export class TokenService {
       });
 
       if (!tokenRecord) {
+        this.logger.warn(
+          `Обновление токенов отклонено: токен не найден в БД, userId=${user.id}`,
+        );
         throw new UnauthorizedException('Токен не найден или уже использован');
       }
 
       if (new Date() > tokenRecord.expiresAt) {
         await this.refreshTokenModel.deleteOne({ _id: tokenRecord._id });
+        this.logger.warn(
+          `Обновление токенов отклонено: refresh token истёк, userId=${user.id}`,
+        );
         throw new UnauthorizedException('Refresh токен истек');
       }
 
       await this.refreshTokenModel.deleteOne({ _id: tokenRecord._id });
+      this.logger.log(`Refresh token обновлён успешно: userId=${user.id}`);
       return this.generateAndSaveTokens(user);
-    } catch {
+    } catch (error) {
+      const isKnownException =
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException ||
+        error instanceof UnauthorizedException;
+
+      if (!isKnownException) {
+        const message =
+          error instanceof Error ? error.message : 'Неизвестная ошибка';
+        this.logger.error(
+          `Ошибка при обновлении токенов: reason=${message}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+
       throw new UnauthorizedException({
         message: 'Refresh токен истек или невалиден',
       });
@@ -67,8 +99,10 @@ export class TokenService {
   }
 
   async generateAndSaveTokens(user: UserDocument) {
+    this.logger.debug(`Генерация и сохранение токенов: userId=${user.id}`);
     const tokens = this.generateToken(user);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
+    this.logger.debug(`Токены сохранены: userId=${user.id}`);
     return tokens;
   }
 
@@ -128,5 +162,7 @@ export class TokenService {
       token: refreshToken,
       expiresAt,
     });
+
+    this.logger.debug(`Refresh token сохранён в БД: userId=${userId}`);
   }
 }

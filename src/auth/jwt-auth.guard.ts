@@ -2,13 +2,16 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
   constructor(private jwtService: JwtService) {}
 
   canActivate(
@@ -18,6 +21,9 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader) {
+        this.logger.warn(
+          `Авторизация отклонена: отсутствует заголовок Authorization, path=${req.url}`,
+        );
         throw new UnauthorizedException({
           message: 'Пользователь не авторизован',
         });
@@ -27,6 +33,9 @@ export class JwtAuthGuard implements CanActivate {
       const token = authHeader.split(' ')[1];
 
       if (bearer !== 'Bearer' || !token) {
+        this.logger.warn(
+          `Авторизация отклонена: некорректный Bearer token, path=${req.url}`,
+        );
         throw new UnauthorizedException({
           message: 'Пользователь не авторизован',
         });
@@ -34,13 +43,22 @@ export class JwtAuthGuard implements CanActivate {
 
       const user = this.jwtService.verify(token);
       req.user = user;
+      this.logger.debug(
+        `Пользователь авторизован: userId=${user.id}, path=${req.url}`,
+      );
       return true;
     } catch (e) {
-      if (e.name === 'TokenExpiredError') {
+      if (e instanceof Error && e.name === 'TokenExpiredError') {
+        this.logger.warn(
+          `Авторизация отклонена: access token истёк, path=${req.url}`,
+        );
         throw new UnauthorizedException({
           message: 'Истек срок действия Access token',
         });
       }
+
+      const message = e instanceof Error ? e.message : 'Неизвестная ошибка';
+      this.logger.warn(`Авторизация отклонена: ${message}, path=${req.url}`);
       throw new UnauthorizedException({
         message: 'Пользователь не авторизован',
       });
