@@ -1,0 +1,95 @@
+services:
+  app:
+    build:
+      context: .
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    env_file:
+      - .production.env
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongo:27017/nest-db?replicaSet=rs0
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: main
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    networks:
+      - backend
+
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    networks:
+      - backend
+
+  mongo-init:
+    image: mongo:7
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command:
+      [
+        "mongosh",
+        "--host",
+        "mongo:27017",
+        "--eval",
+        "try { rs.status(); } catch (error) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }); }",
+      ]
+    restart: "no"
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - backend
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    networks:
+      - backend
+
+volumes:
+  mongo_data:
+  minio_data:
+
+networks:
+  backend:
+    driver: bridge

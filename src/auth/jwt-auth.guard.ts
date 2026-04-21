@@ -1,38 +1,68 @@
-import {CanActivate, ExecutionContext, Injectable, UnauthorizedException} from "@nestjs/common";
-import {Observable} from "rxjs";
-import {JwtService} from "@nestjs/jwt";
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-    constructor(private jwtService: JwtService) {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
+  constructor(private jwtService: JwtService) {}
+
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean> {
+    const req = context.switchToHttp().getRequest();
+
+    try {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader) {
+        this.logger.warn(
+          `Авторизация отклонена: отсутствует заголовок Authorization, path=${req.url}`,
+        );
+        throw new UnauthorizedException({
+          message: 'Пользователь не авторизован',
+        });
+      }
+
+      const [bearer, token] = authHeader.split(' ');
+
+      if (bearer !== 'Bearer' || !token) {
+        this.logger.warn(
+          `Авторизация отклонена: некорректный Bearer token, path=${req.url}`,
+        );
+        throw new UnauthorizedException({
+          message: 'Пользователь не авторизован',
+        });
+      }
+
+      const user = this.jwtService.verify(token);
+      req.user = user;
+
+      this.logger.debug(
+        `Пользователь авторизован: userId=${user.id}, path=${req.url}`,
+      );
+
+      return true;
+    } catch (e) {
+      if (e instanceof Error && e.name === 'TokenExpiredError') {
+        this.logger.warn(
+          `Авторизация отклонена: access token истёк, path=${req.url}`,
+        );
+      } else {
+        const message = e instanceof Error ? e.message : 'Неизвестная ошибка';
+        this.logger.warn(`Авторизация отклонена: ${message}, path=${req.url}`);
+      }
+
+      throw new UnauthorizedException({
+        message: 'Пользователь не авторизован',
+      });
     }
-
-    canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-        const req = context.switchToHttp().getRequest()
-        try {
-            const authHeader = req.headers.authorization;
-            if (!authHeader) {
-                throw new UnauthorizedException({message: 'Пользователь не авторизован'});
-            }
-            
-            const bearer = authHeader.split(' ')[0]
-            const token = authHeader.split(' ')[1]
-
-            if (bearer !== 'Bearer' || !token) {
-                throw new UnauthorizedException({message: 'Пользователь не авторизован'})
-            }
-
-            const user = this.jwtService.verify(token);
-            req.user = user;
-            return true;
-        } catch (e) {
-            if (e.name === 'TokenExpiredError') {
-                throw new UnauthorizedException({ 
-                    message: 'Истек срок действия Access token',
-                });
-            }
-            throw new UnauthorizedException({message: 'Пользователь не авторизован'})
-        }
-    }
-
+  }
 }
