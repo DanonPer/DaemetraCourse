@@ -18,8 +18,10 @@ export class JwtAuthGuard implements CanActivate {
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
     const req = context.switchToHttp().getRequest();
+
     try {
       const authHeader = req.headers.authorization;
+
       if (!authHeader) {
         this.logger.warn(
           `Авторизация отклонена: отсутствует заголовок Authorization, path=${req.url}`,
@@ -29,8 +31,7 @@ export class JwtAuthGuard implements CanActivate {
         });
       }
 
-      const bearer = authHeader.split(' ')[0];
-      const token = authHeader.split(' ')[1];
+      const [bearer, token] = authHeader.split(' ');
 
       if (bearer !== 'Bearer' || !token) {
         this.logger.warn(
@@ -43,22 +44,22 @@ export class JwtAuthGuard implements CanActivate {
 
       const user = this.jwtService.verify(token);
       req.user = user;
+
       this.logger.debug(
         `Пользователь авторизован: userId=${user.id}, path=${req.url}`,
       );
+
       return true;
     } catch (e) {
       if (e instanceof Error && e.name === 'TokenExpiredError') {
         this.logger.warn(
           `Авторизация отклонена: access token истёк, path=${req.url}`,
         );
-        throw new UnauthorizedException({
-          message: 'Истек срок действия Access token',
-        });
+      } else {
+        const message = e instanceof Error ? e.message : 'Неизвестная ошибка';
+        this.logger.warn(`Авторизация отклонена: ${message}, path=${req.url}`);
       }
 
-      const message = e instanceof Error ? e.message : 'Неизвестная ошибка';
-      this.logger.warn(`Авторизация отклонена: ${message}, path=${req.url}`);
       throw new UnauthorizedException({
         message: 'Пользователь не авторизован',
       });

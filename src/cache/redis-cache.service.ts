@@ -13,10 +13,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   private client: RedisClientType;
 
   constructor(private readonly configService: ConfigService) {
-    const redisUrl = this.configService.get<string>(
-      'REDIS_URL',
-      `redis://${this.configService.get<string>('REDIS_HOST', 'localhost')}:${this.configService.get<string>('REDIS_PORT', '6379')}`,
-    );
+    const redisUrl = this.configService.getOrThrow<string>('REDIS_URL');
 
     this.client = createClient({ url: redisUrl });
     this.client.on('error', (error) => {

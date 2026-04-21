@@ -1,7 +1,9 @@
 import {
   Controller,
   Delete,
+  FileTypeValidator,
   Param,
+  ParseFilePipe,
   ParseUUIDPipe,
   Post,
   UploadedFile,
@@ -18,9 +20,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { UserDecorator } from 'src/common/user.decorator';
+import type { IUploadedMulterFile } from 'src/providers/s3/interfaces/upload-file.interface';
 import { AvatarsService } from './avatars.service';
 import { Avatar } from './schemas/avatar.schema';
-import { IUploadedMulterFile } from 'src/providers/s3/interfaces/upload-file.interface';
 
 @ApiTags('Аватарки')
 @Controller('users/:userId/avatars')
@@ -48,7 +50,13 @@ export class AvatarsController {
   uploadAvatar(
     @UserDecorator('id') currentUserId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
-    @UploadedFile() file: IUploadedMulterFile | undefined,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: /^image\/.+$/ })],
+        fileIsRequired: true,
+      }),
+    )
+    file: IUploadedMulterFile,
   ) {
     return this.avatarsService.uploadAvatar(currentUserId, userId, file);
   }

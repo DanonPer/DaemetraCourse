@@ -7,9 +7,9 @@ import {
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { IFileService } from 'src/providers/files.adapter';
-import { AvatarRepository } from './repositories/avatar.repository';
 import { UsersService } from 'src/users/users.service';
 import { IUploadedMulterFile } from 'src/providers/s3/interfaces/upload-file.interface';
+import { AvatarRepository } from './repositories/avatar.repository';
 
 @Injectable()
 export class AvatarsService {
@@ -25,17 +25,9 @@ export class AvatarsService {
   async uploadAvatar(
     currentUserId: string,
     userId: string,
-    file: IUploadedMulterFile | undefined,
+    file: IUploadedMulterFile,
   ) {
     await this.validateAvatarOwner(currentUserId, userId);
-
-    if (!file) {
-      throw new BadRequestException('Файл аватарки не передан');
-    }
-
-    if (!file.mimetype?.startsWith('image/')) {
-      throw new BadRequestException('Можно загружать только изображения');
-    }
 
     const activeAvatarsCount = await this.avatarRepository.countDocuments({
       userId,
