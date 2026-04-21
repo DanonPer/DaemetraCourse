@@ -1,73 +1,79 @@
-# DaemetraCourse
+# DaemetraCourse Monorepo
 
-NestJS API с MongoDB, Redis и MinIO.
+NestJS monorepo with two applications:
 
-## Что нужно для запуска
+- `user-service` - main API with MongoDB, Redis, MinIO, Swagger, auth, users, avatars, roles, and background jobs
+- `notification-service` - separate Nest application for notifications
+
+## Structure
+
+```text
+apps/
+  user-service/
+  notification-service/
+```
+
+## Requirements
 
 - Node.js 22+
 - npm
-- Docker и Docker Compose
+- Docker and Docker Compose
 
-## Вариант 1. Быстрый запуск через Docker Compose
+## Quick Start With Docker
 
-1. Убедитесь, что файл `.production.env` существует в корне проекта.
-2. Запустите проект:
+Make sure `.production.env` exists in the project root, then run:
 
 ```bash
 docker compose up --build
 ```
 
-MongoDB в compose запускается как `replica set`, поэтому переводы с транзакциями будут работать без ручной настройки.
+Services:
 
-3. После запуска сервисы будут доступны по адресам:
-
-- API: `http://localhost:5000`
+- User API: `http://localhost:5000`
 - Swagger: `http://localhost:5000/api/docs`
 - MinIO API: `http://localhost:9000`
 - MinIO Console: `http://localhost:9001`
 
-Для остановки:
+Stop containers:
 
 ```bash
 docker compose down
 ```
 
-## Вариант 2. Локальный запуск приложения
+## Local Development
 
-1. Установите зависимости:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Создайте файл `.development.env` на основе примера:
+2. Create `.development.env` from the example:
 
 ```bash
 cp .development.env.example .development.env
 ```
 
-Если вы работаете в PowerShell:
+PowerShell:
 
 ```powershell
 Copy-Item .development.env.example .development.env
 ```
 
-3. Поднимите зависимости отдельно. Проще всего через Docker:
+3. Start infrastructure services:
 
 ```bash
 docker compose up -d mongo mongo-init redis minio
 ```
 
-Если вы раньше запускали MongoDB без `replica set`, перед повторным подъёмом может понадобиться полная пересборка томов:
+If MongoDB was previously started without a replica set, rebuild volumes first:
 
 ```bash
 docker compose down -v
 docker compose up -d mongo mongo-init redis minio
 ```
 
-4. Проверьте значения в `.development.env`.
-
-Если приложение запускается на хосте, а MongoDB/Redis/MinIO в Docker, обычно подходят такие значения:
+4. Check `.development.env`. Typical local values:
 
 ```env
 PORT=5000
@@ -94,57 +100,97 @@ REDIS_URL=redis://localhost:6379
 NODE_ENV=development
 ```
 
-5. Запустите приложение:
+## Run Applications
+
+Run the main API in development mode:
 
 ```bash
 npm run start:dev
 ```
 
-После запуска:
-
-- API: `http://localhost:5000`
-- Swagger: `http://localhost:5000/api/docs`
-
-## Очереди и фоновые задачи
-
-В проекте используется Bull и Redis для фоновых задач.
-
-Сейчас реализован модуль сброса баланса пользователей:
-
-- ручной запуск через `POST /balance-reset`
-- автоматическая постановка job каждые 10 минут, пока приложение запущено
-
-## Полезные команды
-
-Запуск без watch-режима с `NODE_ENV=production`:
+Run `user-service` without watch mode:
 
 ```bash
 npm run start
 ```
 
-Сборка:
+Run `notification-service` in development mode:
+
+```bash
+npm run start:notification-service:dev
+```
+
+Run `notification-service` without watch mode:
+
+```bash
+npm run start:notification-service
+```
+
+## Build Commands
+
+Build `user-service`:
 
 ```bash
 npm run build
 ```
 
-Запуск собранного приложения:
+Build `notification-service`:
+
+```bash
+npm run build:notification-service
+```
+
+Build both applications:
+
+```bash
+npm run build:all
+```
+
+Run production builds:
 
 ```bash
 npm run start:prod
+npm run start:notification-service:prod
 ```
 
-Тесты:
+## Tests
+
+Unit tests:
 
 ```bash
 npm run test
+```
+
+E2E tests for `user-service`:
+
+```bash
 npm run test:e2e
+```
+
+E2E tests for `notification-service`:
+
+```bash
+npm run test:e2e:notification-service
+```
+
+Coverage:
+
+```bash
 npm run test:cov
 ```
 
-## Примечание по env-файлам
+## Background Jobs
 
-Приложение выбирает env-файл по `NODE_ENV`:
+The `user-service` uses Bull and Redis for background processing.
+
+Currently the project includes a balance reset module with:
+
+- manual trigger via `POST /balance-reset`
+- scheduled job creation every 10 minutes while the application is running
+
+## Environment Files
+
+The application selects the env file by `NODE_ENV`:
 
 - `NODE_ENV=development` -> `.development.env`
 - `NODE_ENV=production` -> `.production.env`
