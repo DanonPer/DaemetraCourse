@@ -2,21 +2,21 @@ import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AddressInfo } from 'net';
+import request from 'supertest';
 import { io, Socket as ClientSocket } from 'socket.io-client';
 import { NotificationServiceModule } from '../notification-service.module';
-import { NotificationGateway } from './notification.gateway';
 
 interface ServerToClientEvents {
   pong: (data: string) => void;
+  notification: (payload: { data: string }) => void;
 }
 
 interface ClientToServerEvents {
   ping: (data: string) => void;
 }
 
-describe('NotificationGateway', () => {
+describe('Notification realtime flow', () => {
   let app: INestApplication;
-  let gateway: NotificationGateway;
   let jwtService: JwtService;
   let client: ClientSocket<ServerToClientEvents, ClientToServerEvents>;
   let port: number;
@@ -32,7 +32,6 @@ describe('NotificationGateway', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    gateway = app.get(NotificationGateway);
     jwtService = app.get(JwtService);
 
     await app.listen(0);
@@ -48,13 +47,36 @@ describe('NotificationGateway', () => {
     await app.close();
   });
 
-  it('should be defined', () => {
-    expect(gateway).toBeDefined();
+  it('should disconnect client with invalid token', async () => {
+    client = io(`http://localhost:${port}`, {
+      transports: ['websocket'],
+      extraHeaders: {
+        authorization: 'Bearer invalid-token',
+      },
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      client.on('connect', () => {
+        setTimeout(() => {
+          if (!client.connected) {
+            resolve();
+            return;
+          }
+
+          reject(new Error('Client should be disconnected'));
+        }, 50);
+      });
+
+      client.on('connect_error', () => {
+        resolve();
+      });
+    });
   });
 
-  it('should emit "pong" on "ping"', async () => {
+  it('should deliver notification to authenticated user room', async () => {
+    const userId = 'user-123';
     const accessToken = jwtService.sign({
-      id: 'user-123',
+      id: userId,
       login: 'tester',
       roles: ['USER'],
     });
@@ -68,12 +90,22 @@ describe('NotificationGateway', () => {
 
     await new Promise<void>((resolve, reject) => {
       client.on('connect', () => {
-        client.emit('ping', 'Hello world!');
+        void request(app.getHttpServer())
+          .post('/notification')
+          .send({
+            userId,
+            data: 'hello!',
+          })
+          .expect(201)
+          .then(() => undefined)
+          .catch((error: unknown) => {
+            reject(error instanceof Error ? error : new Error(String(error)));
+          });
       });
 
-      client.on('pong', (data) => {
+      client.on('notification', (payload) => {
         try {
-          expect(data).toBe('Hello world!');
+          expect(payload).toEqual({ data: 'hello!' });
           resolve();
         } catch (error) {
           reject(error instanceof Error ? error : new Error(String(error)));

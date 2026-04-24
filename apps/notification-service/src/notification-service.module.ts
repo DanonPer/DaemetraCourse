@@ -1,10 +1,17 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { NotificationServiceController } from './notification-service.controller';
 import { NotificationServiceService } from './notification-service.service';
 import { NotificationModule } from './notification/notification.module';
 
 @Module({
-  imports: [NotificationModule],
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: `.${process.env.NODE_ENV || 'development'}.env`,
+      isGlobal: true,
+    }),
+    NotificationModule,
+  ],
   controllers: [NotificationServiceController],
   providers: [NotificationServiceService],
 })

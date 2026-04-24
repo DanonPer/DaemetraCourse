@@ -9,18 +9,26 @@ import {
   WsResponse,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { NotificationAuthService } from './notification-auth.service';
 
 interface ClientToServerEvents {
   ping: (data: string) => void;
 }
 
+interface NotificationPayload {
+  data: string;
+}
+
 interface ServerToClientEvents {
   pong: (data: string) => void;
+  notification: (payload: NotificationPayload) => void;
 }
 
 type InterServerEvents = Record<string, never>;
 
-type SocketData = Record<string, never>;
+interface SocketData {
+  userId: string;
+}
 
 type NotificationServer = Server<
   ClientToServerEvents,
@@ -47,23 +55,48 @@ export class NotificationGateway
 {
   private readonly logger = new Logger(NotificationGateway.name);
 
+  constructor(
+    private readonly notificationAuthService: NotificationAuthService,
+  ) {}
+
   @WebSocketServer()
-  server: NotificationServer;
+  io: NotificationServer;
 
   afterInit(server: NotificationServer): void {
     this.logger.log('Initialized');
     this.logger.debug(`Connected clients: ${server.sockets.sockets.size}`);
   }
 
-  handleConnection(client: NotificationSocket): void {
+  async handleConnection(client: NotificationSocket): Promise<void> {
     this.logger.log(`Client id: ${client.id} connected`);
-    this.logger.debug(
-      `Number of connected clients: ${this.server.sockets.sockets.size}`,
-    );
+
+    try {
+      const userId = this.notificationAuthService.verifyAuthorizationHeader(
+        client.handshake.headers.authorization,
+      );
+
+      client.data.userId = userId;
+      await client.join(userId);
+
+      this.logger.debug(`Client id: ${client.id} joined room: ${userId}`);
+      this.logger.debug(
+        `Number of connected clients: ${this.io.sockets.sockets.size}`,
+      );
+    } catch {
+      this.logger.warn(
+        `Client id: ${client.id} disconnected due to invalid JWT`,
+      );
+      client.disconnect();
+    }
   }
 
   handleDisconnect(client: NotificationSocket): void {
     this.logger.log(`Client id: ${client.id} disconnected`);
+  }
+
+  sendNotification(userId: string, payload: NotificationPayload): void {
+    this.io.to(userId).emit('notification', payload);
+    this.logger.log(`Notification sent to room: ${userId}`);
   }
 
   @SubscribeMessage('ping')
