@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { UserDecorator } from '../common/user.decorator';
+import { UserDecorator } from '@app/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';

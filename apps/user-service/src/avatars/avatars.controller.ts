@@ -19,7 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { UserDecorator } from 'src/common/user.decorator';
+import { UserDecorator } from '@app/common';
 import type { IUploadedMulterFile } from 'src/providers/s3/interfaces/upload-file.interface';
 import { AvatarsService } from './avatars.service';
 import { Avatar } from './schemas/avatar.schema';

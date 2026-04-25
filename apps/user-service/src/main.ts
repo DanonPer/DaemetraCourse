@@ -3,13 +3,16 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
-import { HttpExceptionFilter } from './common/http-exception.filter';
+import { HttpExceptionFilter } from '@app/common';
 
 async function start() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  const PORT = configService.get<number>('PORT', 5000);
+  const PORT = configService.get<number>(
+    'USER_SERVICE_PORT',
+    configService.get<number>('PORT', 5000),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
