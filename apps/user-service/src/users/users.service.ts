@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import { ClientSession, Connection } from 'mongoose';
 import { RedisCacheService } from 'src/cache/redis-cache.service';
 import { RolesService } from 'src/roles/roles.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -13,6 +13,7 @@ import { GetMostActiveUsersDto } from './dto/get-most-active-users.dto';
 import { GetUsersDto } from './dto/get-users.dto';
 import { TransferMoneyDto } from './dto/transfer-money.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersNotificationsService } from './users-notifications.service';
 import { UserRepository } from './repositories/user.repository';
 
 const USERS_CACHE_TTL_SECONDS = 30;
@@ -25,6 +26,7 @@ export class UsersService {
     private userRepository: UserRepository,
     private roleService: RolesService,
     private redisCacheService: RedisCacheService,
+    private readonly usersNotificationsService: UsersNotificationsService,
     @InjectConnection() private readonly connection: Connection,
   ) {}
 
@@ -200,84 +202,56 @@ export class UsersService {
           }
         | undefined;
 
-      await session.withTransaction(async () => {
-        const [fromUser, toUser] = await Promise.all([
-          this.userRepository.findOne(
-            { id: fromUserId, deletedAt: null },
-            session,
-          ),
-          this.userRepository.findOne(
-            { id: toUserId, deletedAt: null },
-            session,
-          ),
-        ]);
-
-        if (!fromUser) {
-          this.logger.warn(
-            `Перевод отклонён: отправитель не найден, fromUserId=${fromUserId}`,
-          );
-          throw new NotFoundException(
-            `Отправитель с идентификатором ${fromUserId} не найден`,
-          );
-        }
-
-        if (!toUser) {
-          this.logger.warn(
-            `Перевод отклонён: получатель не найден, toUserId=${toUserId}`,
-          );
-          throw new NotFoundException(
-            `Получатель с идентификатором ${toUserId} не найден`,
-          );
-        }
-
-        const senderBalanceInCents = this.balanceToCents(fromUser.balance);
-        if (senderBalanceInCents < transferAmountInCents) {
-          this.logger.warn(
-            `Перевод отклонён из-за нехватки средств: fromUserId=${fromUserId}, balanceInCents=${senderBalanceInCents}, transferAmountInCents=${transferAmountInCents}`,
-          );
-          throw new BadRequestException('Недостаточно средств');
-        }
-
-        const receiverBalanceInCents = this.balanceToCents(toUser.balance);
-        const updatedSenderBalance = this.centsToDollars(
-          senderBalanceInCents - transferAmountInCents,
-        );
-        const updatedReceiverBalance = this.centsToDollars(
-          receiverBalanceInCents + transferAmountInCents,
-        );
-
-        await Promise.all([
-          this.userRepository.updateByIdField(
+      try {
+        await session.withTransaction(async () => {
+          transferResult = await this.executeTransfer(
             fromUserId,
-            { balance: updatedSenderBalance },
-            session,
-          ),
-          this.userRepository.updateByIdField(
             toUserId,
-            { balance: updatedReceiverBalance },
+            amount,
+            transferAmountInCents,
             session,
-          ),
-        ]);
+          );
+        });
+      } catch (error) {
+        if (!this.isTransactionsUnsupportedError(error)) {
+          throw error;
+        }
 
-        transferResult = {
-          message: 'Передача успешно завершена',
-          amount: this.formatCentsAsAmount(transferAmountInCents),
-          fromUser: {
-            id: fromUserId,
-            balance: updatedSenderBalance,
-          },
-          toUser: {
-            id: toUserId,
-            balance: updatedReceiverBalance,
-          },
-        };
-
-        this.logger.log(
-          `Перевод выполнен успешно: fromUserId=${fromUserId}, toUserId=${toUserId}, amount=${amount}, senderBalance=${updatedSenderBalance}, receiverBalance=${updatedReceiverBalance}`,
+        this.logger.warn(
+          'MongoDB transactions are unavailable, using a non-transactional transfer fallback',
         );
-      });
+
+        transferResult = await this.executeTransfer(
+          fromUserId,
+          toUserId,
+          amount,
+          transferAmountInCents,
+        );
+      }
 
       await this.redisCacheService.deleteByPattern('users:*');
+      if (!transferResult) {
+        throw new BadRequestException('Transfer result was not created');
+      }
+      const transferredAt = new Date().toISOString();
+
+      this.usersNotificationsService.sendNotification({
+        recipientUserId: fromUserId,
+        senderUserId: fromUserId,
+        receiverUserId: toUserId,
+        amount: transferResult.amount,
+        transferredAt,
+        data: `You sent $${transferResult.amount} to user ${toUserId}`,
+      });
+      this.usersNotificationsService.sendNotification({
+        recipientUserId: toUserId,
+        senderUserId: fromUserId,
+        receiverUserId: toUserId,
+        amount: transferResult.amount,
+        transferredAt,
+        data: `You received $${transferResult.amount} from user ${fromUserId}`,
+      });
+
       return transferResult;
     } catch (error) {
       const message =
@@ -321,5 +295,91 @@ export class UsersService {
 
   private formatCentsAsAmount(cents: number) {
     return this.centsToDollars(cents).toFixed(2);
+  }
+
+  private async executeTransfer(
+    fromUserId: string,
+    toUserId: string,
+    amount: string,
+    transferAmountInCents: number,
+    session?: ClientSession,
+  ) {
+    const [fromUser, toUser] = await Promise.all([
+      this.userRepository.findOne({ id: fromUserId, deletedAt: null }, session),
+      this.userRepository.findOne({ id: toUserId, deletedAt: null }, session),
+    ]);
+
+    if (!fromUser) {
+      this.logger.warn(
+        `Перевод отклонён: отправитель не найден, fromUserId=${fromUserId}`,
+      );
+      throw new NotFoundException(
+        `Отправитель с идентификатором ${fromUserId} не найден`,
+      );
+    }
+
+    if (!toUser) {
+      this.logger.warn(
+        `Перевод отклонён: получатель не найден, toUserId=${toUserId}`,
+      );
+      throw new NotFoundException(
+        `Получатель с идентификатором ${toUserId} не найден`,
+      );
+    }
+
+    const senderBalanceInCents = this.balanceToCents(fromUser.balance);
+    if (senderBalanceInCents < transferAmountInCents) {
+      this.logger.warn(
+        `Перевод отклонён из-за нехватки средств: fromUserId=${fromUserId}, balanceInCents=${senderBalanceInCents}, transferAmountInCents=${transferAmountInCents}`,
+      );
+      throw new BadRequestException('Недостаточно средств');
+    }
+
+    const receiverBalanceInCents = this.balanceToCents(toUser.balance);
+    const updatedSenderBalance = this.centsToDollars(
+      senderBalanceInCents - transferAmountInCents,
+    );
+    const updatedReceiverBalance = this.centsToDollars(
+      receiverBalanceInCents + transferAmountInCents,
+    );
+
+    await Promise.all([
+      this.userRepository.updateByIdField(
+        fromUserId,
+        { balance: updatedSenderBalance },
+        session,
+      ),
+      this.userRepository.updateByIdField(
+        toUserId,
+        { balance: updatedReceiverBalance },
+        session,
+      ),
+    ]);
+
+    this.logger.log(
+      `Перевод выполнен успешно: fromUserId=${fromUserId}, toUserId=${toUserId}, amount=${amount}, senderBalance=${updatedSenderBalance}, receiverBalance=${updatedReceiverBalance}`,
+    );
+
+    return {
+      message: 'Передача успешно завершена',
+      amount: this.formatCentsAsAmount(transferAmountInCents),
+      fromUser: {
+        id: fromUserId,
+        balance: updatedSenderBalance,
+      },
+      toUser: {
+        id: toUserId,
+        balance: updatedReceiverBalance,
+      },
+    };
+  }
+
+  private isTransactionsUnsupportedError(error: unknown) {
+    return (
+      error instanceof Error &&
+      error.message.includes(
+        'Transaction numbers are only allowed on a replica set member or mongos',
+      )
+    );
   }
 }

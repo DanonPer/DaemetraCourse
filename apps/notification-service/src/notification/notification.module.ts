@@ -1,13 +1,22 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
+import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationController } from './notification.controller';
 import { NotificationAuthService } from './notification-auth.service';
 import { NotificationGateway } from './notification.gateway';
+import { NotificationStorageService } from './notification-storage.service';
+import {
+  Notification,
+  NotificationSchema,
+} from './schemas/notification.schema';
 
 @Module({
   imports: [
     ConfigModule,
+    MongooseModule.forFeature([
+      { name: Notification.name, schema: NotificationSchema },
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -23,7 +32,11 @@ import { NotificationGateway } from './notification.gateway';
     }),
   ],
   controllers: [NotificationController],
-  providers: [NotificationGateway, NotificationAuthService],
+  providers: [
+    NotificationGateway,
+    NotificationAuthService,
+    NotificationStorageService,
+  ],
   exports: [NotificationGateway],
 })
 export class NotificationModule {}
